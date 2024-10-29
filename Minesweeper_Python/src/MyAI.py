@@ -82,6 +82,7 @@ class MyAI(AI):
                     # TODO: wtf is going on
                     print(f"Warning: Invalid cell number found at ({new_col}, {new_row}): {cell_number}")
 
+
     def action_decider(self, number, col, row, deferred=False):
         """Determine actions based on the number indicating adjacent bombs."""
         if number == 0:
