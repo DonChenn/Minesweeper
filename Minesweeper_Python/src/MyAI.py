@@ -76,7 +76,11 @@ class MyAI(AI):
             if (new_col, new_row) in self.uncovered:
                 # Get the number from the board for the uncovered cell
                 cell_number = self.board[new_row][new_col]
-                heappush(self.deferred_queue, (cell_number, (new_col, new_row)))
+                if isinstance(cell_number, int):
+                    heappush(self.deferred_queue, (cell_number, (new_col, new_row)))
+                else:
+                    # TODO: wtf is going on
+                    print(f"Warning: Invalid cell number found at ({new_col}, {new_row}): {cell_number}")
 
     def action_decider(self, number, col, row, deferred=False):
         """Determine actions based on the number indicating adjacent bombs."""
@@ -117,8 +121,6 @@ class MyAI(AI):
             action = self.runQueue(self.queue)
             if action:
                 return action
-            print(self.queue)
-            print(self.deferred_queue)
 
         # No actions left
         return Action(AI.Action.LEAVE)
