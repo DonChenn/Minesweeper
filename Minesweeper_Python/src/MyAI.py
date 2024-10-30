@@ -32,7 +32,7 @@ class MyAI(AI):
                     self.bombs.add((new_col, new_row))
 
     def inBounds(self, x, y):
-        return (0 <= x < self.col_dimension and 0 <= y < self.row_dimension)
+        return 0 <= x < self.col_dimension and 0 <= y < self.row_dimension
 
     def checkCells(self, directions):
         adj_bombs = []
@@ -82,7 +82,6 @@ class MyAI(AI):
                     # TODO: wtf is going on
                     print(f"Warning: Invalid cell number found at ({new_col}, {new_row}): {cell_number}")
 
-
     def action_decider(self, number, col, row, deferred=False):
         """Determine actions based on the number indicating adjacent bombs."""
         if number == 0:
@@ -92,15 +91,11 @@ class MyAI(AI):
         else:
             self.bomb_action(number, col, row)
 
-    def runQueue(self, queue):
-        if queue:
-            priority, cell = heappop(queue)
-            # update next cell position
-            self.x, self.y = cell[1], cell[2]
-
-            # Execute action and return it
-            action_type = cell[0]
-            return Action(AI.Action[action_type], cell[1], cell[2])
+    def runQueue(self):
+        while self.queue:
+            priority, (action, col, row) = heappop(self.queue)
+            self.x, self.y = col, row
+            return Action(AI.Action[action], col, row)
         return None
 
     def getAction(self, number: int) -> "Action Object":
@@ -110,18 +105,41 @@ class MyAI(AI):
         # Determine actions based on the number
         self.action_decider(number, self.x, self.y)
 
-        action = self.runQueue(self.queue)
+        action = self.runQueue()
         if action:
             return action
 
-        # Process deferred queue
+        # Process deferred queue if main queue is empty
         while self.deferred_queue:
             deferred_number, (col, row) = heappop(self.deferred_queue)
             self.action_decider(deferred_number, col, row, True)
 
-            action = self.runQueue(self.queue)
+            action = self.runQueue()
             if action:
                 return action
 
-        # No actions left
+        # No actions left; attempt to find unexplored cells
+        if len(self.bombs) < self.total_mines:
+            unexplored_cells = [(col, row) for row in range(self.row_dimension)
+                                for col in range(self.col_dimension) if self.board[row][col] == "?"]
+
+            # Add adjacent uncovered cells with numbers to deferred queue
+            for col, row in unexplored_cells:
+                adj_covered_cells = self.getAdjacentCells(col, row)
+                for adj_col, adj_row in adj_covered_cells:
+                    if (adj_col, adj_row) in self.uncovered:
+                        cell_number = self.board[adj_row][adj_col]  # Note: swapped indices for board access
+                        if isinstance(cell_number, int):
+                            heappush(self.deferred_queue, (cell_number, (adj_col, adj_row)))
+
+            # Check deferred queue again after populating
+            if self.deferred_queue:
+                deferred_number, (col, row) = heappop(self.deferred_queue)
+                self.action_decider(deferred_number, col, row, True)
+
+                action = self.runQueue()
+                if action:
+                    return action
+
+        # All actions exhausted
         return Action(AI.Action.LEAVE)
