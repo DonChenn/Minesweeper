@@ -143,3 +143,4 @@ class MyAI(AI):
 
         # All actions exhausted
         return Action(AI.Action.LEAVE)
+
