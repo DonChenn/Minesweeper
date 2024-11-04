@@ -21,15 +21,11 @@ class MyAI(AI):
         self.uncovered = set()
         self.bombs = set()
 
-    def addActionsToQueue(self, priority, action, directions):
-        for cell in directions:
-            new_col, new_row = cell  # new_col is x, new_row is y
-            if self.inBounds(new_col, new_row) and (new_col, new_row) not in self.uncovered:
-                heappush(self.queue, (priority, (action, new_col, new_row)))
-                if action == self.ACTION_UNCOVER:
-                    self.uncovered.add((new_col, new_row))
-                elif action == self.ACTION_FLAG:
-                    self.bombs.add((new_col, new_row))
+    def getAdjacentCells(self, col, row):
+        directions = [(-1, -1), (-1, 0), (-1, 1),
+                      (0, -1), (0, 1),
+                      (1, -1), (1, 0), (1, 1)]
+        return [(col + dc, row + dr) for dc, dr in directions if self.inBounds(col + dc, row + dr)]
 
     def inBounds(self, x, y):
         return 0 <= x < self.col_dimension and 0 <= y < self.row_dimension
@@ -47,11 +43,6 @@ class MyAI(AI):
                     uncovered.append((new_col, new_row))  # Collect uncovered spaces
         return uncovered, adj_bombs
 
-    def getAdjacentCells(self, col, row):
-        directions = [(-1, -1), (-1, 0), (-1, 1),
-                      (0, -1), (0, 1),
-                      (1, -1), (1, 0), (1, 1)]
-        return [(col + dc, row + dr) for dc, dr in directions if self.inBounds(col + dc, row + dr)]
 
     def zero_action(self):
         cells = self.getAdjacentCells(self.x, self.y)
@@ -80,7 +71,8 @@ class MyAI(AI):
                     heappush(self.deferred_queue, (cell_number, (new_col, new_row)))
                 else:
                     # TODO: wtf is going on
-                    print(f"Warning: Invalid cell number found at ({new_col}, {new_row}): {cell_number}")
+                    # print(f"Warning: Invalid cell number found at ({new_col}, {new_row}): {cell_number}")
+                    pass
 
     def action_decider(self, number, col, row, deferred=False):
         """Determine actions based on the number indicating adjacent bombs."""
@@ -91,6 +83,16 @@ class MyAI(AI):
         else:
             self.bomb_action(number, col, row)
 
+    def addActionsToQueue(self, priority, action, directions):
+        for cell in directions:
+            new_col, new_row = cell  # new_col is x, new_row is y
+            if self.inBounds(new_col, new_row) and (new_col, new_row) not in self.uncovered:
+                heappush(self.queue, (priority, (action, new_col, new_row)))
+                if action == self.ACTION_UNCOVER:
+                    self.uncovered.add((new_col, new_row))
+                elif action == self.ACTION_FLAG:
+                    self.bombs.add((new_col, new_row))
+
     def runQueue(self):
         while self.queue:
             priority, (action, col, row) = heappop(self.queue)
@@ -99,6 +101,7 @@ class MyAI(AI):
         return None
 
     def getAction(self, number: int) -> "Action Object":
+        print(f'QUEUE: {self.queue}')
         # Update the board with the current cell number
         self.board[self.y][self.x] = number
 
@@ -120,6 +123,7 @@ class MyAI(AI):
 
         # No actions left; attempt to find unexplored cells
         if len(self.bombs) < self.total_mines:
+            print("LEN < BOMBS")
             unexplored_cells = [(col, row) for row in range(self.row_dimension)
                                 for col in range(self.col_dimension) if self.board[row][col] == "?"]
 
@@ -143,4 +147,3 @@ class MyAI(AI):
 
         # All actions exhausted
         return Action(AI.Action.LEAVE)
-
