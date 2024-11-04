@@ -146,3 +146,4 @@ class MyAI(AI):
 
         # If all options are exhausted, leave the game
         return Action(AI.Action.LEAVE)
+
