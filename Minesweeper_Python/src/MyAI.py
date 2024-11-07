@@ -157,7 +157,6 @@ class MyAI(AI):
 
         if self.covered:
             guess = min(self.covered, key=self.covered.get)
-            print(f"Educated guess: {guess}")
             return guess
 
     def getAction(self, number: int) -> "Action Object":
