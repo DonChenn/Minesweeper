@@ -47,9 +47,11 @@ class MyAI(AI):
                 elif (new_col, new_row) not in self.uncovered:
                     covered.append((new_col, new_row))
 
-        for cell in covered:
-            new_col, new_row = cell
-            self.covered[(new_col, new_row)] = (len(covered) - number) / len(covered)
+        if covered:
+            probability = (len(covered) - number) / len(covered)
+            for cell in covered:
+                if cell not in self.covered or self.covered[cell] != probability:
+                    self.covered[cell] = probability
 
         return covered, adj_bombs
 
@@ -111,13 +113,23 @@ class MyAI(AI):
         return None
 
     def processDeferredQueue(self):
-        """revists cells that didn't queue actions"""
+        """Revisits deferred cells with potential new information."""
+        revisited = []
+
         while self.deferred_queue:
             deferred_number, (col, row) = heappop(self.deferred_queue)
-            self.action_decider(deferred_number, col, row, True)
-            action = self.runQueue()
-            if action:
-                return action
+            directions = self.getAdjacentCells(col, row)
+            if any((c, r) in self.uncovered for c, r in directions):
+                self.action_decider(deferred_number, col, row, True)
+                action = self.runQueue()
+                if action:
+                    return action
+            else:
+                revisited.append((deferred_number, (col, row)))
+
+        for item in revisited:
+            heappush(self.deferred_queue, item)
+
         return None
 
     def exploreUnexploredCells(self):
@@ -134,7 +146,6 @@ class MyAI(AI):
                         heappush(self.deferred_queue, (cell_number, (adj_col, adj_row)))
 
     def educated_guess(self):
-        print(f"THIS{self.covered}")
         to_delete = []
 
         for coord in self.covered:
@@ -143,8 +154,6 @@ class MyAI(AI):
 
         for coord in to_delete:
             del self.covered[coord]
-
-        print(f"THAT{self.covered}")
 
         if self.covered:
             guess = min(self.covered, key=self.covered.get)
@@ -176,27 +185,21 @@ class MyAI(AI):
 
         # Explore remaining cells if no actions are queued
         if len(self.bombs) < self.total_mines and not self.queue and not self.deferred_queue:
-            print("HERE")
             min_guess = self.educated_guess()
-            print(f'FRACTIONS: {self.covered}')
             if min_guess:
-                del self.covered[(min_guess[0], min_guess[1])]
-                return Action(AI.Action.UNCOVER, min_guess[0], min_guess[1])
+                del self.covered[min_guess]
+                self.addActionsToQueue(0, self.ACTION_UNCOVER, [min_guess])
+
+        # uncover rest of cells if no mines
         else:
             unexplored_cells = [(col, row) for row in range(self.row_dimension)
                                 for col in range(self.col_dimension) if self.board[row][col] == "?"]
             if unexplored_cells:
                 col, row = unexplored_cells[0]
                 return Action(AI.Action.UNCOVER, col, row)
-        #
-        # if len(self.bombs) < self.total_mines:
-        #     while True:
-        #         col = random.randint(0, self.col_dimension - 1)
-        #         row = random.randint(0, self.row_dimension - 1)
-        #
-        #         if (col, row) not in self.uncovered and (col, row) not in self.bombs:
-        #             return Action(AI.Action.UNCOVER, col, row)
 
-        # If all options are exhausted, leave the game
+        action = self.runQueue()
+        if action:
+            return action
 
         return Action(AI.Action.LEAVE)
