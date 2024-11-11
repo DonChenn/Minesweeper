@@ -50,8 +50,12 @@ class MyAI(AI):
         if covered:
             probability = (len(covered) - number) / len(covered)
             for cell in covered:
-                if cell not in self.covered or self.covered[cell] != probability:
-                    self.covered[cell] = probability
+                if cell not in self.covered:
+                    self.covered[cell] = (probability, 1)
+                else:
+                    current_prob, count = self.covered[cell]
+                    new_prob = (current_prob * count + probability) / (count + 1)
+                    self.covered[cell] = (new_prob, count + 1)
 
         return covered, adj_bombs
 
@@ -156,7 +160,7 @@ class MyAI(AI):
             del self.covered[coord]
 
         if self.covered:
-            guess = min(self.covered, key=self.covered.get)
+            guess = max(self.covered, key=self.covered.get)
             return guess
 
     def getAction(self, number: int) -> "Action Object":
@@ -184,10 +188,10 @@ class MyAI(AI):
 
         # Explore remaining cells if no actions are queued
         if len(self.bombs) < self.total_mines and not self.queue and not self.deferred_queue:
-            min_guess = self.educated_guess()
-            if min_guess:
-                del self.covered[min_guess]
-                self.addActionsToQueue(0, self.ACTION_UNCOVER, [min_guess])
+            max_guess = self.educated_guess()
+            if max_guess:
+                del self.covered[max_guess]
+                self.addActionsToQueue(0, self.ACTION_UNCOVER, [max_guess])
 
         # uncover rest of cells if no mines
         else:
