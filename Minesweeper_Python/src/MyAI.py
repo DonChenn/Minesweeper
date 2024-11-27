@@ -37,7 +37,7 @@ class MyAI(AI):
     def checkCells(self, directions, number):
         """returns uncovered cells and known bomb cells"""
         adj_bombs = []
-        covered = []
+        adj_covered = []
 
         for cell in directions:
             new_col, new_row = cell
@@ -45,19 +45,21 @@ class MyAI(AI):
                 if (new_col, new_row) in self.bombs:
                     adj_bombs.append((new_col, new_row))
                 elif (new_col, new_row) not in self.uncovered:
-                    covered.append((new_col, new_row))
+                    adj_covered.append((new_col, new_row))
 
-        if covered:
-            probability = (len(covered) - number) / len(covered)
-            for cell in covered:
+        # updating cells probability
+        if adj_covered:
+            probability_of_mine = (number - len(adj_bombs)) / len(adj_covered)
+
+            for cell in adj_covered:
                 if cell not in self.covered:
-                    self.covered[cell] = (probability, 1)
+                    self.covered[cell] = (probability_of_mine, 1)
                 else:
                     current_prob, count = self.covered[cell]
-                    new_prob = (current_prob * count + probability) / (count + 1)
+                    new_prob = (current_prob * count + probability_of_mine) / (count + 1)
                     self.covered[cell] = (new_prob, count + 1)
 
-        return covered, adj_bombs
+        return adj_covered, adj_bombs
 
     def zero_action(self):
         """adds to queue to uncover all adjacent cells if n is 0"""
@@ -141,13 +143,15 @@ class MyAI(AI):
         unexplored_cells = [(col, row) for row in range(self.row_dimension)
                             for col in range(self.col_dimension) if self.board[row][col] == "?"]
 
+        # adds hints near unexplored cells to deferred queue
         for col, row in unexplored_cells:
             adj_cells = self.getAdjacentCells(col, row)
-            for adj_col, adj_row in adj_cells:
-                if (adj_col, adj_row) in self.uncovered:
-                    cell_number = self.board[adj_row][adj_col]
-                    if isinstance(cell_number, int):
-                        heappush(self.deferred_queue, (cell_number, (adj_col, adj_row)))
+            if any((adj_col, adj_row) in self.uncovered for adj_col, adj_row in adj_cells):
+                for adj_col, adj_row in adj_cells:
+                    if (adj_col, adj_row) in self.uncovered:
+                        cell_number = self.board[adj_row][adj_col]
+                        if isinstance(cell_number, int):
+                            heappush(self.deferred_queue, (cell_number, (adj_col, adj_row)))
 
     def educated_guess(self):
         to_delete = []
@@ -160,7 +164,7 @@ class MyAI(AI):
             del self.covered[coord]
 
         if self.covered:
-            guess = max(self.covered, key=self.covered.get)
+            guess = min(self.covered, key=self.covered.get)
             return guess
 
     def getAction(self, number: int) -> "Action Object":
@@ -188,10 +192,10 @@ class MyAI(AI):
 
         # Explore remaining cells if no actions are queued
         if len(self.bombs) < self.total_mines and not self.queue and not self.deferred_queue:
-            max_guess = self.educated_guess()
-            if max_guess:
-                del self.covered[max_guess]
-                self.addActionsToQueue(0, self.ACTION_UNCOVER, [max_guess])
+            min_guess = self.educated_guess()
+            if min_guess:
+                del self.covered[min_guess]
+                self.addActionsToQueue(0, self.ACTION_UNCOVER, [min_guess])
 
         # uncover rest of cells if no mines
         else:
