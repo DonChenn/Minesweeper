@@ -168,6 +168,7 @@ class MyAI(AI):
             del self.covered[coord]
 
         if self.covered:
+
             guess = min(self.covered, key=self.covered.get)
             return guess
 
@@ -182,21 +183,19 @@ class MyAI(AI):
 
                     # Check for exact `1-1` pattern
                     if len(unexplored) == 2 and len(flagged) == 0:
-                        for adj_col, adj_row in unexplored:
-                            for other_col, other_row in self.getAdjacentCells(adj_col, adj_row):
-                                if (other_col, other_row) != (col, row) and self.board[other_row][other_col] == 1:
-                                    shared = set(self.getAdjacentCells(col, row)).intersection(
-                                        set(self.getAdjacentCells(other_col, other_row))
-                                    )
-                                    shared_unexplored = [
-                                        cell for cell in shared if cell not in self.uncovered
-                                    ]
+                        for adj_col, adj_row in adj_cells:
+                            if self.board[adj_row][adj_col] == 1:
 
-                                    # If one unexplored cell is already satisfied by the adjacent `1`
-                                    if len(shared_unexplored) == 1:
-                                        self.addActionsToQueue(
-                                            priority=2, action=self.ACTION_UNCOVER, directions=shared_unexplored
-                                        )
+                                other_adj_cells = self.getAdjacentCells(adj_col, adj_row)
+                                other_unexplored = [cell for cell in other_adj_cells if cell not in self.uncovered]
+                                other_flagged = [cell for cell in other_adj_cells if cell in self.bombs]
+
+                                if len(other_unexplored) == 3 and len(other_flagged) == 0:
+                                    safe = set(other_unexplored).difference(set(unexplored))
+
+                                    self.addActionsToQueue(
+                                        priority=1, action=self.ACTION_UNCOVER, directions=safe
+                                    )
 
     def getAction(self, number: int) -> "Action Object":
         # World Complete Check
@@ -219,11 +218,10 @@ class MyAI(AI):
         if action:
             return action
 
-        if len(self.bombs) < self.total_mines:
-            self.exploreUnexploredCells()
-            action = self.processDeferredQueue()
-            if action:
-                return action
+        self.exploreUnexploredCells()
+        action = self.processDeferredQueue()
+        if action:
+            return action
 
         self.one_one_and_variations()
         action = self.runQueue()
@@ -231,7 +229,7 @@ class MyAI(AI):
             return action
 
         # Explore remaining cells if no actions are queued
-        if len(self.bombs) < self.total_mines and not self.queue and not self.deferred_queue:
+        if len(self.bombs) < self.total_mines:
             min_guess = self.educated_guess()
             if min_guess:
                 del self.covered[min_guess]
