@@ -12,6 +12,7 @@ class MyAI(AI):
         self.row_dimension = rowDimension
         self.col_dimension = colDimension
         self.total_mines = totalMines
+        self.total_cells = rowDimension * colDimension
         self.x = startX  # Column index
         self.y = startY  # Row index
 
@@ -22,6 +23,7 @@ class MyAI(AI):
         self.uncovered = set()
         self.bombs = set()
         self.covered = dict()
+        self.uncovered_count = 0
 
     def getAdjacentCells(self, col, row):
         """gets surrounding cells"""
@@ -112,8 +114,10 @@ class MyAI(AI):
 
     def runQueue(self):
         """completes action in queue based on priority of n (0 has highest)"""
-        while self.queue:
+        if self.queue:
             priority, (action, col, row) = heappop(self.queue)
+            if action == self.ACTION_UNCOVER:
+                self.uncovered_count += 1
             self.x, self.y = col, row
             return Action(AI.Action[action], col, row)
         return None
@@ -167,7 +171,38 @@ class MyAI(AI):
             guess = min(self.covered, key=self.covered.get)
             return guess
 
+    def one_one_and_variations(self):
+        for row in range(self.row_dimension):
+            for col in range(self.col_dimension):
+                if self.board[row][col] == 1:
+                    # Get adjacent cells
+                    adj_cells = self.getAdjacentCells(col, row)
+                    unexplored = [cell for cell in adj_cells if cell not in self.uncovered]
+                    flagged = [cell for cell in adj_cells if cell in self.bombs]
+
+                    # Check for exact `1-1` pattern
+                    if len(unexplored) == 2 and len(flagged) == 0:
+                        for adj_col, adj_row in unexplored:
+                            for other_col, other_row in self.getAdjacentCells(adj_col, adj_row):
+                                if (other_col, other_row) != (col, row) and self.board[other_row][other_col] == 1:
+                                    shared = set(self.getAdjacentCells(col, row)).intersection(
+                                        set(self.getAdjacentCells(other_col, other_row))
+                                    )
+                                    shared_unexplored = [
+                                        cell for cell in shared if cell not in self.uncovered
+                                    ]
+
+                                    # If one unexplored cell is already satisfied by the adjacent `1`
+                                    if len(shared_unexplored) == 1:
+                                        self.addActionsToQueue(
+                                            priority=2, action=self.ACTION_UNCOVER, directions=shared_unexplored
+                                        )
+
     def getAction(self, number: int) -> "Action Object":
+        # World Complete Check
+        if self.total_cells - self.total_mines == self.uncovered_count:
+            return Action(AI.Action.LEAVE)
+
         # Update board with the current cell's number
         self.board[self.y][self.x] = number
 
@@ -190,6 +225,11 @@ class MyAI(AI):
             if action:
                 return action
 
+        self.one_one_and_variations()
+        action = self.runQueue()
+        if action:
+            return action
+
         # Explore remaining cells if no actions are queued
         if len(self.bombs) < self.total_mines and not self.queue and not self.deferred_queue:
             min_guess = self.educated_guess()
@@ -201,9 +241,9 @@ class MyAI(AI):
         else:
             unexplored_cells = [(col, row) for row in range(self.row_dimension)
                                 for col in range(self.col_dimension) if self.board[row][col] == "?"]
-            if unexplored_cells:
-                col, row = unexplored_cells[0]
-                return Action(AI.Action.UNCOVER, col, row)
+
+            for col, row in unexplored_cells:
+                heappush(self.queue, (0, (self.ACTION_UNCOVER, col, row)))
 
         action = self.runQueue()
         if action:
