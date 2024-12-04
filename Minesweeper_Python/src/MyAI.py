@@ -106,17 +106,19 @@ class MyAI(AI):
         """bounds check + add action to queue"""
         for cell in directions:
             new_col, new_row = cell
-            if self.inBounds(new_col, new_row) and (new_col, new_row) not in self.uncovered:
-                heappush(self.queue, (priority, (action, new_col, new_row)))
-                if action == self.ACTION_UNCOVER:
+            if self.inBounds(new_col, new_row):
+                if action == self.ACTION_UNCOVER and (new_col, new_row) not in self.uncovered:
+                    heappush(self.queue, (priority, (action, new_col, new_row)))
                     self.uncovered.add((new_col, new_row))
-                elif action == self.ACTION_FLAG:
+                elif action == self.ACTION_FLAG and (new_col, new_row) not in self.bombs:
+                    heappush(self.queue, (priority, (action, new_col, new_row)))
                     self.bombs.add((new_col, new_row))
 
     def runQueue(self):
         """completes action in queue based on priority of n (0 has highest)"""
         if self.queue:
             priority, (action, col, row) = heappop(self.queue)
+
             if action == self.ACTION_UNCOVER:
                 self.uncovered_count += 1
             self.x, self.y = col, row
