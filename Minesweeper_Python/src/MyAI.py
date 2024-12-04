@@ -24,6 +24,7 @@ class MyAI(AI):
         self.bombs = set()
         self.covered = dict()
         self.uncovered_count = 0
+        self.processed_patterns = set()
 
     def getAdjacentCells(self, col, row):
         """gets surrounding cells"""
@@ -168,7 +169,6 @@ class MyAI(AI):
             del self.covered[coord]
 
         if self.covered:
-
             guess = min(self.covered, key=self.covered.get)
             return guess
 
@@ -179,23 +179,36 @@ class MyAI(AI):
                     # Get adjacent cells
                     adj_cells = self.getAdjacentCells(col, row)
                     unexplored = [cell for cell in adj_cells if cell not in self.uncovered]
-                    flagged = [cell for cell in adj_cells if cell in self.bombs]
 
-                    # Check for exact `1-1` pattern
-                    if len(unexplored) == 2 and len(flagged) == 0:
+                    # Skip if the pattern for this cell has already been processed
+                    if len(unexplored) == 2:
+                        pattern_id = (row, col, tuple(sorted(unexplored)))
+                        if pattern_id in self.processed_patterns:
+                            continue
+
+                        # Mark pattern as processed
+                        self.processed_patterns.add(pattern_id)
+
                         for adj_col, adj_row in adj_cells:
-                            if self.board[adj_row][adj_col] == 1:
+                            hint_number = self.board[adj_row][adj_col]
+                            other_adj_cells = self.getAdjacentCells(adj_col, adj_row)
+                            other_unexplored = [cell for cell in other_adj_cells if cell not in self.uncovered]
 
-                                other_adj_cells = self.getAdjacentCells(adj_col, adj_row)
-                                other_unexplored = [cell for cell in other_adj_cells if cell not in self.uncovered]
-                                other_flagged = [cell for cell in other_adj_cells if cell in self.bombs]
-
-                                if len(other_unexplored) == 3 and len(other_flagged) == 0:
+                            if (len(other_unexplored) >= 3
+                                    and len(set(other_unexplored).intersection(set(unexplored))) == 2):
+                                if hint_number == 1:
                                     safe = set(other_unexplored).difference(set(unexplored))
 
                                     self.addActionsToQueue(
                                         priority=1, action=self.ACTION_UNCOVER, directions=safe
                                     )
+                                else:
+                                    if hint_number != "?":
+                                        bombs = set(other_unexplored).difference(set(unexplored))
+                                        if len(bombs) == hint_number - 1:
+                                            self.addActionsToQueue(
+                                                priority=1, action=self.ACTION_FLAG, directions=bombs
+                                            )
 
     def getAction(self, number: int) -> "Action Object":
         # World Complete Check
