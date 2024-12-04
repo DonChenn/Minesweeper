@@ -194,14 +194,15 @@ class MyAI(AI):
                             other_adj_cells = self.getAdjacentCells(adj_col, adj_row)
                             other_unexplored = [cell for cell in other_adj_cells if cell not in self.uncovered]
 
-                            if (len(other_unexplored) >= 3
-                                    and len(set(other_unexplored).intersection(set(unexplored))) == 2):
+                            if len(other_unexplored) >= 3 and set(unexplored).issubset(set(other_unexplored)):
                                 if hint_number == 1:
                                     safe = set(other_unexplored).difference(set(unexplored))
 
                                     self.addActionsToQueue(
                                         priority=1, action=self.ACTION_UNCOVER, directions=safe
                                     )
+                                    return
+
                                 else:
                                     if hint_number != "?":
                                         bombs = set(other_unexplored).difference(set(unexplored))
@@ -209,6 +210,7 @@ class MyAI(AI):
                                             self.addActionsToQueue(
                                                 priority=1, action=self.ACTION_FLAG, directions=bombs
                                             )
+                                            return
 
     def getAction(self, number: int) -> "Action Object":
         # World Complete Check
