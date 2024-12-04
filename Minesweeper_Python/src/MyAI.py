@@ -183,7 +183,7 @@ class MyAI(AI):
                     unexplored = [cell for cell in adj_cells if cell not in self.uncovered]
 
                     # Skip if the pattern for this cell has already been processed
-                    if len(unexplored) == 2:
+                    if len(unexplored) >= 2:
                         pattern_id = (row, col, tuple(sorted(unexplored)))
                         if pattern_id in self.processed_patterns:
                             continue
